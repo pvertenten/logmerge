@@ -47,8 +47,9 @@ class Log
   end
 
   def buffer
+    # TODO: add support for multiline log statements
+    # basically read until next timestamp found including all lines as an entry
     begin
-      # TODO: add support for multiline log statements
       @line = file.readline.strip
       @timestamp = parseTimestamp(line)
       line.prepend("[#{@tag}]") if @tag
