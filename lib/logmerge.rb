@@ -48,6 +48,7 @@ class Log
 
   def buffer
     begin
+      # TODO: add support for multiline log statements
       @line = file.readline.strip
       @timestamp = parseTimestamp(line)
       line.prepend("[#{@tag}]") if @tag
