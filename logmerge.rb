@@ -1,4 +1,3 @@
-require 'pry'
 require 'colored'
 require 'date'
 require 'optparse'
