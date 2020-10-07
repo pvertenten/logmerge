@@ -29,6 +29,7 @@ class Log
   end
 
   def parseTimestamp(line)
+    # would be great to generalize this more
     if line[0] == '['
       # agent logs
       ts = DateTime.parse(line[1...24])
