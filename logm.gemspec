@@ -1,6 +1,6 @@
 Gem::Specification.new do |s|
   s.name        = 'logm'
-  s.version     = '0.0.2'
+  s.version     = '0.0.3'
   s.date        = '2020-10-07'
   s.summary     = 'Log Merge Utility!'
   s.description = 'A simple logmerge utility'

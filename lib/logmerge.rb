@@ -14,13 +14,16 @@ class Numeric
 end
 
 class Log
-  attr_accessor :file, :line, :offet, :timestamp, :finished
+  attr_accessor :file, :line, :offet, :tag, :timestamp, :finished
   def initialize(path)
     @offset = 0
     if path.include?(':')
       parts = path.split(':')
       path = parts[0]
       @offset = parts[1].to_i
+      if parts.size > 2
+        @tag = parts[2]
+      end
     end
     @file = File.open(path)
     @finished = false
@@ -47,6 +50,7 @@ class Log
     begin
       @line = file.readline.strip
       @timestamp = parseTimestamp(line)
+      line.prepend("[#{@tag}]") if @tag
     rescue Date::Error
       @timestamp = nil
     end
