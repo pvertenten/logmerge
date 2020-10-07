@@ -88,20 +88,3 @@ class LogMerge
     end
   end
 end
-
-options = {}
-OptionParser.new do |opts|
-  opts.banner = "Usage: logmerge.rb [options] [logs]"
-  opts.on("-sSTARTTIME", "--startTime=STARTTIME", "startTime") do |time|
-     options[:startTime] = DateTime.parse(time)
-  end
-  opts.on("-eENDTIME", "--endTime=ENDTIME", "endTime") do |time|
-     options[:endTime] = time
-  end
-end.parse!
-
-options[:startTime] ||= Time.at(0)
-options[:endTime] ||= Time.at(2000000000000)
-
-merge = LogMerge.new(ARGV, options[:startTime], options[:endTime])
-merge.merge
