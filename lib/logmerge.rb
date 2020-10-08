@@ -2,6 +2,8 @@ require 'colored'
 require 'date'
 require 'optparse'
 
+
+
 class Numeric
   def minutes; self/1440.0 end
   alias :minute :minutes
@@ -13,8 +15,27 @@ class Numeric
   alias :millisecond :milliseconds
 end
 
+class File
+  alias :old_initialize :initialize
+  alias :old_readline :readline
+  def initialize (*args)
+    @buf=[]
+    old_initialize(*args)
+  end
+  def unreadline (str)
+    @buf.push(str)
+  end
+  def readline (*args)
+    @buf.empty? ? old_readline(*args) : @buf.pop
+  end
+
+  def buf
+    @buf
+  end
+end
+
 class Log
-  attr_accessor :file, :line, :offet, :tag, :timestamp, :finished
+  attr_accessor :file, :line, :next, :offet, :tag, :timestamp, :next_timestamp, :finished
   def initialize(path)
     @offset = 0
     if path.include?(':')
@@ -30,36 +51,74 @@ class Log
     buffer
   end
 
-  def parseTimestamp(line)
+  def parseTimestamp(current)
+    # puts "parsingTimestamp: #{current}"
     # would be great to generalize this more
-    if line[0] == '['
+    ts = nil
+    if current =~ /^\[\d\d\d\d\/\d\d\/\d\d \d\d:\d\d:\d\d\.\d\d\d\]/
       # agent logs
-      ts = DateTime.parse(line[1...24])
+      ts_part = current[1...24]
+      # puts "ts_part: #{ts_part}"
+      ts = DateTime.parse(ts_part)
       ts = ts + @offset.seconds
-      line[1...24] = ts.to_s
-    else
+    elsif current =~ /^\d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\d\.\d\d\d[+-]\d\d\d\d/
       #mms logs
-      ts = DateTime.parse(line[0...28])
+      ts_part = current[0...28]
+      # puts "ts_part: #{ts_part}"
+      ts = DateTime.parse(current[0...28])
       ts = ts + @offset.seconds
-      line[0...28] = "[#{ts.to_s}]"
     end
     ts
+  rescue Date::Error
+    nil
+  end
+
+  def applyTimestamp(current, timestamp)
+    if current =~ /^\[\d\d\d\d\/\d\d\/\d\d \d\d:\d\d:\d\d\.\d\d\d\]/
+      current[1...24] = timestamp.to_s
+    elsif current =~ /^\d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\d\.\d\d\d[+-]\d\d\d\d/
+      current[0...28] = "[#{timestamp.to_s}]"
+    end
+    current
+  end
+
+  def append(current, timestamp=nil)
+    current.prepend("[#{@tag}]") if @tag && timestamp
+    @line.push(current)
   end
 
   def buffer
+    @count ||= 0
+    # puts "buffer: #{@count}"
+    # puts "file buffer: #{file.buf}"
+    @count = @count + 1
     # TODO: add support for multiline log statements
     # basically read until next timestamp found including all lines as an entry
-    begin
-      @line = file.readline.strip
-      @timestamp = parseTimestamp(line)
-      line.prepend("[#{@tag}]") if @tag
-    rescue Date::Error
-      @timestamp = nil
+    @line = []
+    @timestamp = nil
+    timestamp_index = 0
+    while @timestamp.nil? do
+      current = file.readline.strip
+      # puts "current: #{current}"
+      @timestamp = parseTimestamp(current)
+      # puts "timestamp: #{@timestamp}"
+      append(current, @timestamp)
+      timestamp_index = timestamp_index + 1 if @timestamp.nil?
+    end
+
+    applyTimestamp(line[timestamp_index], @timestamp) if line.size > timestamp_index
+
+    next_timestamp = nil
+    while next_timestamp.nil? do
+      current = file.readline.strip
+      # puts "nextcurrent: #{current}"
+      next_timestamp = parseTimestamp(current)
+      # puts "next_timestamp: #{next_timestamp}"
+      file.unreadline(current + "\n") && break unless next_timestamp.nil?
+      append(current)
     end
   rescue EOFError
-    @line = nil
-    @finished = true
-    @timestamp = nil
+    @finished = true if @line.empty?
   end
 
   def take
@@ -90,7 +149,12 @@ class LogMerge
       index = logs.index(min_log)
       color_index = index % colors.size
       color = colors[color_index]
-      puts Colored.colorize(min_log.take, foreground: color)
+      loglines = min_log.take
+      puts applyColor(loglines, color).join("\n")
     end
+  end
+
+  def applyColor(loglines, color)
+    loglines.map{|l| Colored.colorize(l, foreground: color)}
   end
 end
