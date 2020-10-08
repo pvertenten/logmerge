@@ -36,7 +36,7 @@ end
 
 class Log
   attr_accessor :file, :line, :next, :offet, :tag, :timestamp, :next_timestamp, :finished
-  def initialize(path)
+  def initialize(path, autotag=false)
     @offset = 0
     if path.include?(':')
       parts = path.split(':')
@@ -45,6 +45,9 @@ class Log
       if parts.size > 2
         @tag = parts[2]
       end
+    end
+    if @tag.nil? && autotag
+      @tag = File.basename(path)
     end
     @file = File.open(path)
     @finished = false
@@ -79,12 +82,8 @@ class Log
     elsif current =~ /^\d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\d\.\d\d\d[+-]\d\d\d\d/
       current[0...28] = "[#{timestamp.to_s}]"
     end
-    current
-  end
-
-  def append(current, timestamp=nil)
     current.prepend("[#{@tag}]") if @tag && timestamp
-    @line.push(current)
+    current
   end
 
   def buffer
@@ -102,7 +101,7 @@ class Log
       # puts "current: #{current}"
       @timestamp = parseTimestamp(current)
       # puts "timestamp: #{@timestamp}"
-      append(current, @timestamp)
+      @line.push(current)
       timestamp_index = timestamp_index + 1 if @timestamp.nil?
     end
 
@@ -115,7 +114,7 @@ class Log
       next_timestamp = parseTimestamp(current)
       # puts "next_timestamp: #{next_timestamp}"
       file.unreadline(current + "\n") && break unless next_timestamp.nil?
-      append(current)
+      @line.push(current)
     end
   rescue EOFError
     @finished = true if @line.empty?
@@ -130,8 +129,8 @@ end
 
 class LogMerge
   attr_reader :logs, :startTime, :endTime
-  def initialize(files, startTime=Time.at(0), endTime=Time.at(2000000000000))
-    @logs = files.map {|f| Log.new(f)}
+  def initialize(files, startTime=Time.at(0), endTime=Time.at(2000000000000), autotag=false)
+    @logs = files.map {|f| Log.new(f, autotag)}
     @startTime = DateTime.parse(startTime.to_s)
     @endTime = DateTime.parse(endTime.to_s)
   end

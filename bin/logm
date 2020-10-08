@@ -11,10 +11,14 @@ OptionParser.new do |opts|
   opts.on("-eENDTIME", "--endTime=ENDTIME", "endTime") do |time|
      options[:endTime] = time
   end
+  opts.on("-a", "--autotag", "endTime") do
+     options[:autotag] = true
+  end
 end.parse!
 
 options[:startTime] ||= Time.at(0)
 options[:endTime] ||= Time.at(2000000000000)
+options[:autotag] ||= false
 
-merge = LogMerge.new(ARGV, options[:startTime], options[:endTime])
+merge = LogMerge.new(ARGV, options[:startTime], options[:endTime], options[:autotag])
 merge.merge
